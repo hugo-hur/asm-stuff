@@ -16,24 +16,22 @@ section .data
 section .text
 extern printf
 printfcallfloat:;Pass in RDI
-	;PUSHA
+
 	MOV RSI, RDI
-	;PUSH RDI
+	PUSH RDI ;Preserve value of rdi
 	MOV RDI, formatStrf
-	;MOV RSI,
-	MOV AL, 0 
-	call printf
-	ret
+	MOV AL, 0 ;Magic number
+	CALL printf
+	POP RDI
+	RET
 
 printfcall:;Pass in RDI
-	;PUSHA
+	
 	MOV RSI, RDI
-	;PUSH RDI
 	MOV RDI, formatStrdec
-	;MOV RSI,
 	MOV AL, 0 
-	call printf
-	ret
+	CALL printf
+	RET
 
 
 global dbmwatts
@@ -50,34 +48,32 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 
 	;Calculate 10^xmm0
 	;Move the last result to x87 stack
-	MOVSD QWORD [RSP], XMM0 ;Copy result back to the stack
-	
-	;Clean the fpu stack top
-	FSTP
-	FSTP
-
-	FLD QWORD [RSP] ;Load the previous result to the x87 stack ST(1)
+	;MOVSD QWORD [RSP], XMM0 ;Copy result back to the stack
+	;FLD QWORD [RSP] ;Load the previous result (2 at testing) to the x87 stack ST(1)
 	
 	;Load 10 to the fpu stack
-	MOV RAX, 10
-	PUSH RAX
-	FLD QWORD [RSP] ;ST(0)
-	POP RAX
+	;MOV RAX, 10
+	PUSH QWORD 10
+	FILD QWORD [RSP] ;ST(0)
+	;POP RAX
+	
+	MOVSD QWORD [RSP], XMM0 ;Copy to stack
+	FLD QWORD [RSP];Load number 2 float to the x87
 
 	;Do the math y = xmm0, x=10 X*LOG2(Y)
 	FYL2X ;ST(1) = OUT
 	;Calculate 2^ST(1)
 	
-	FSTP ;just remove ST(0), no need to preserve
 	;We now have the result of x*log2(y) in ST(0), calculate 2^ST(0)
 	;calculate 2 to the power of the whole part of exponent
 	;Get the whole part of the exponent
 	;load the result from the stack to the xmm0 reg
 	FSTP QWORD [RSP];Pop the result from the logarithm to the stack
-	MOV RDI, QWORD [RSP]
+	;pop from stack to rdi
+	POP RDI
 	call printfcallfloat
 
-	MOVSD XMM0, QWORD [RSP]
+	MOVSD XMM0, QWORD [RSP];RDI
 	;these are temp
 	ADD RSP, 8
 	RET
