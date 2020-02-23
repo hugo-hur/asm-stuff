@@ -19,9 +19,13 @@ printfcallfloat:;Pass in RDI
 
 	MOV RSI, RDI
 	PUSH RDI ;Preserve value of rdi
+	PUSH RAX
+
 	MOV RDI, formatStrf
 	MOV AL, 0 ;Magic number
 	CALL printf
+
+	POP RAX
 	POP RDI
 	RET
 
@@ -29,9 +33,13 @@ printfcall:;Pass in RDI
 	
 	MOV RSI, RDI
 	PUSH RDI
+	PUSH RAX
+
 	MOV RDI, formatStrdec
 	MOV AL, 0 
 	CALL printf
+
+	POP RAX
 	POP RDI
 	RET
 
@@ -77,10 +85,10 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	
 	;MOVSD QWORD [RSP], XMM0 ;Copy the value to the stack
 	;MOV RDI, QWORD [RSP];Pass in RDI register
-	CALL printfcall ;print the whole exponent
+	;CALL printfcall ;print the whole exponent
 	CALL twotopwr ;Calculate 2^whole exponent
-	MOV RDI, RAX
-	CALL printfcall ;Print the 
+	;MOV RDI, RAX
+	;CALL printfcall ;Print the 
 	ADD RSP, 8
 	RET
 	;Subtract the XMM0 from XMM1
@@ -113,26 +121,32 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 
 twotopwr:
 	;RDI contains the power
-	;CALL printfcall
-	MOV RAX, 2;The 2 here
+	CALL printfcall
+	PUSH RBX;Preserve rbx
 	CMP RDI, 0;If 0 then return 1
 	JE ret1
+	
+	MOV RAX, 2 ;2 here, starting value
+	MOV RBX, 2 ;Multiplier
 	
 loop:
 	;CALL printfcall
 	DEC RDI ;Subtract the exponent
 	CMP RDI, 0 ;Check if 0
 	JE ret ;if 0 then return the value in rax
-	MUL RAX ;Multiply rax with itself
+	MUL RBX ;Multiply rax with 2
 	;Print the rax content
-	PUSH RDI
-	MOV RDI, RAX
-	CALL printfcall
-	POP RDI
+	;PUSH RDI
+	;PUSH RAX
+	;MOV RDI, RAX
+	;CALL printfcall
+	;POP RAX
+	;POP RDI
 
 	JMP loop ;Again
 ret1:
 	MOV RAX, 1;Exponent was 0
 ret:
+	POP RBX
 	;return value in rax
 	RET
