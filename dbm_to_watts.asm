@@ -43,14 +43,10 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	CVTSS2SD XMM1, [RSP]    ; Load 32-bit single and convert it to 64-bit double. Store in XMM1
 	DIVSD XMM0, XMM1 ;Divide the input by 10, store result to xmm0
 
-	CVTSD2SI RDI, XMM0 ;truncate the value
-	call printfcall
+	;CVTSD2SI RDI, XMM0 ;truncate the value
+	;call printfcall
 
 	;Calculate 10^xmm0
-	;Move the last result to x87 stack
-	;MOVSD QWORD [RSP], XMM0 ;Copy result back to the stack
-	;FLD QWORD [RSP] ;Load the previous result (2 at testing) to the x87 stack ST(1)
-	
 	;Load 10 to the fpu stack
 	;MOV RAX, 10
 	PUSH QWORD 10
