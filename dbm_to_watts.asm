@@ -11,19 +11,26 @@
 section .data
 	ten: dd 10
 	formatStrdec: db `The int is %d\n`,0 ;'Number is %d\n',0
-	formatStrf: db `The int is %f\n`,0 ;'Number is %d\n',0
+	formatStrf: db `The int is %f\n`,0 ;'Number is %f\n',0
 	
 section .text
 extern printf
-printfcallfloat:;Pass in RDI
+printfcallfloat:
+	;Pass in RDI
 
 	MOV RSI, RDI
 	PUSH RDI ;Preserve value of rdi
-	PUSH RAX
+	PUSH RAX ;Preserve value of RAX
+	
+	PUSH RDI;The value we want to print
+	PUSH DWORD formatStrf
 
-	MOV RDI, formatStrf
-	MOV AL, 0 ;Magic number
-	CALL printf
+	;MOV RDI, formatStrf
+	;MOV AL, 0 ;Magic number
+	CALL printf ;segfault
+	
+	POP RAX;Pop the stack back
+	POP RAX
 
 	POP RAX
 	POP RDI
@@ -43,6 +50,20 @@ printfcall:;Pass in RDI
 	POP RDI
 	RET
 
+addone: 
+	MOVSD QWORD [RSP], XMM1 ;Copy to stack to preserve;PUSH XMM1
+	;PUSH;Can we do this? no
+	;PUSH XMM1;Increment the stackpointer, cannot push directly
+	SUB RSP, 8;PUSH EAX;Just move the stack pointer
+
+	MOV DWORD [RSP], __float32__(1.0);Store the constant to the stack
+	CVTSS2SD XMM1, [RSP]    ; Load 32-bit single and convert it to 64-bit double. Store in XMM1
+	ADDSS XMM0, XMM1;add the one
+
+	ADD RSP, 8
+	;Load the XMM1 back
+	MOVSD XMM1, QWORD [RSP]
+	RET
 
 global dbmwatts
 dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
@@ -81,17 +102,24 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 
 	MOVSD XMM0, QWORD [RSP];Move the result back to xmm0
 	
-	CVTSD2SI RDI, XMM0 ;truncate the value (result of the logarithm from the stack) and store to xmm0
+	CVTSD2SI RDI, XMM0 ;truncate the value (result of the logarithm from the stack) and store to RDI
 	
-	;MOVSD QWORD [RSP], XMM0 ;Copy the value to the stack
-	;MOV RDI, QWORD [RSP];Pass in RDI register
-	;CALL printfcall ;print the whole exponent
 	CALL twotopwr ;Calculate 2^whole exponent
-	;MOV RDI, RAX
-	;CALL printfcall ;Print the 
-	ADD RSP, 8
-	RET
+	MOV RDI, RAX
+	CALL printfcall ;Print the result
+	;ADD RSP, 8
+	;RET
 	;Subtract the XMM0 from XMM1
+	;print XMM0 and XMM1
+	MOVSD QWORD [RSP], XMM0 ;Copy to stack
+	MOV RDI, QWORD [RSP]
+	CALL printfcallfloat;This preserves RDI and RAX
+
+	MOVSD QWORD [RSP], XMM1 ;Copy to stack
+	MOV RDI, QWORD [RSP]
+	CALL printfcallfloat;This preserves RDI and RAX
+
+
 	SUBSD XMM1, XMM0
 	;Calculate 2^XMM1
 	MOVSD QWORD [RSP], XMM1 ;Copy the remainder back to the stack
@@ -101,8 +129,10 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	FSTP QWORD [RSP]
 	;load back to sse (floating point)
 	MOVSD XMM0, QWORD [RSP]
+	ADD RSP, 8
+	RET
 	;Add one to the result
-	;ADDSS XMM0, 1;Must be reg?
+	CALL addone ;ADDSS XMM0, 1;Must be reg?
 	;Multiply with the whole number we got from the exponentiation subroutine
 	;Load the rax to sse (whole number in rax)
 	SUB RSP, 4
@@ -116,12 +146,12 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	
 	;SUBSD
 
-	add rsp, 8;Reset the stack
-	ret
+	ADD RSP, 8;Reset the stack
+	RET
 
 twotopwr:
 	;RDI contains the power
-	CALL printfcall
+	;CALL printfcall
 	PUSH RBX;Preserve rbx
 	CMP RDI, 0;If 0 then return 1
 	JE ret1
