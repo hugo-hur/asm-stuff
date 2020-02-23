@@ -21,28 +21,27 @@ extern printf
 	MOVSD QWORD [RSP], %1
 %endmacro
 %macro popxmm 1
-	MOVSD XMM0, QWORD [RSP]
+	MOVSD %1 , QWORD [RSP]
 	ADD RSP, 8;Move the stack
 %endmacro
 
 printfcallfloat:
 	;Value is passed here in RDI
-
 	PUSH RDI ;Preserve value of rdi
 	PUSH RAX ;Preserve value of RAX
-	
-	;CALL pushxmm0;Preserve XMM0
-	pushxmm XMM0
-	;Double is passed in XMM0
+	pushxmm XMM0 ;Preserve XMM0
+	pushxmm XMM1 ;Preserve XMM1 also
+	;Double is passed to printf in XMM0
 	;Now we move the value from the reg to the XMM0 using stack
 	PUSH RDI
 	popxmm XMM0
 	MOV AL, 1;We are passing one argument so al should be 1
 	MOV RDI, formatStrf ;Format string is passed in RDI
 	
-	CALL printf ;segfault
+	CALL printf
 	
-	;CALL popxmm0;Restore XMM0
+	;Restore XMM regs
+	popxmm XMM1
 	popxmm XMM0
 	POP RAX
 	POP RDI
@@ -84,6 +83,8 @@ addone:
 
 global dbmwatts
 dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
+	;Align the stack
+	SUB RSP, 8;8 bytes return address and 8 bytes input value
 	;xmm0;Input here
 	;sub esp, 8 ;Make space on the stack for temporarily store the constant float
 	SUB RSP, 8
@@ -136,6 +137,7 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	FSTP QWORD [RSP]
 	;load back to sse for return value (floating point)
 	MOVSD XMM0, QWORD [RSP]
+	ADD RSP, 8;restore stack
 	ADD RSP, 8
 	RET
 	;Add one to the result
@@ -154,6 +156,7 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	;SUBSD
 
 	ADD RSP, 8;Reset the stack
+	ADD RSP, 8
 	RET
 
 twotopwr:
