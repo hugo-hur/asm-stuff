@@ -28,9 +28,11 @@ printfcallfloat:;Pass in RDI
 printfcall:;Pass in RDI
 	
 	MOV RSI, RDI
+	PUSH RDI
 	MOV RDI, formatStrdec
 	MOV AL, 0 
 	CALL printf
+	POP RDI
 	RET
 
 
@@ -44,19 +46,19 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	DIVSD XMM0, XMM1 ;Divide the input by 10, store result to xmm0
 
 	;CVTSD2SI RDI, XMM0 ;truncate the value
-	;call printfcall
+	;call printfcall ;Does print 2
 
 	;Calculate 10^xmm0
 	;Load 10 to the fpu stack
-	;MOV RAX, 10
-	PUSH QWORD 10
-	FILD QWORD [RSP] ;ST(0)
-	;POP RAX
 	
+	PUSH 10
+	FILD QWORD [RSP]
+	POP RDI
+
 	MOVSD QWORD [RSP], XMM0 ;Copy to stack
 	FLD QWORD [RSP];Load number 2 float to the x87
 
-	;Do the math y = xmm0, x=10 X*LOG2(Y)
+	;Do the math y = xmm0 (2), x=10 X*LOG2(Y)
 	FYL2X ;ST(1) = OUT
 	;Calculate 2^ST(1)
 	
@@ -65,24 +67,22 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	;Get the whole part of the exponent
 	;load the result from the stack to the xmm0 reg
 	FSTP QWORD [RSP];Pop the result from the logarithm to the stack
-	;pop from stack to rdi
-	POP RDI
-	call printfcallfloat
+	
+	;POP RDI
+	;call printfcallfloat
 
-	MOVSD XMM0, QWORD [RSP];RDI
-	;these are temp
+	MOVSD XMM0, QWORD [RSP];Move the result back to xmm0
+	
+	CVTSD2SI RDI, XMM0 ;truncate the value (result of the logarithm from the stack) and store to xmm0
+	
+	;MOVSD QWORD [RSP], XMM0 ;Copy the value to the stack
+	;MOV RDI, QWORD [RSP];Pass in RDI register
+	CALL printfcall ;print the whole exponent
+	CALL twotopwr ;Calculate 2^whole exponent
+	MOV RDI, RAX
+	CALL printfcall ;Print the 
 	ADD RSP, 8
 	RET
-
-	;Before truncating save the result to another xmm reg
-	MOVSD XMM1, QWORD [RSP]
-	;dest, source
-	;CVTSD2SI XMM0, XMM1 ;truncate the value (result of the logarithm from the stack) and store to xmm0
-	
-	MOVSD QWORD [RSP], XMM0 ;Copy the value to the stack
-	MOV RDI, QWORD [RSP];Pass in RDI register
-	CALL twotopwr ;Ret val in RAX
-	
 	;Subtract the XMM0 from XMM1
 	SUBSD XMM1, XMM0
 	;Calculate 2^XMM1
@@ -113,18 +113,26 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 
 twotopwr:
 	;RDI contains the power
-	MOV EAX, 2;The 2 here
+	;CALL printfcall
+	MOV RAX, 2;The 2 here
 	CMP RDI, 0;If 0 then return 1
 	JE ret1
 	
 loop:
-	DEC RDI;Subtracxt the exponent
-	CMP RDI, 0;Check if 0
-	JE ret;if 0 then return the value in rax
-	MUL EAX;Multiplies eax with the value here
+	;CALL printfcall
+	DEC RDI ;Subtract the exponent
+	CMP RDI, 0 ;Check if 0
+	JE ret ;if 0 then return the value in rax
+	MUL RAX ;Multiply rax with itself
+	;Print the rax content
+	PUSH RDI
+	MOV RDI, RAX
+	CALL printfcall
+	POP RDI
+
 	JMP loop ;Again
 ret1:
-	MOV EAX, 1;Exponent was 0
+	MOV RAX, 1;Exponent was 0
 ret:
-	;MOV RAX, RDX;return value to rax
+	;return value in rax
 	RET
