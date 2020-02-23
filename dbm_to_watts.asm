@@ -25,23 +25,6 @@ extern printf
 	ADD RSP, 8;Move the stack
 %endmacro
 
-pushxmm0:
-	SUB RSP, 8;Move the stack
-	MOVSD QWORD [RSP], XMM0
-	RET
-popxmm0:
-	MOVSD XMM0, QWORD [RSP]
-	ADD RSP, 8;Move the stack
-	RET
-
-pushxmm1:
-	SUB RSP, 8;Move the stack
-	MOVSD QWORD [RSP], XMM1
-	RET
-popxmm1:
-	ADD RSP, 8;Move the stack
-	MOVSD XMM1, QWORD [RSP]
-	RET
 printfcallfloat:
 	;Value is passed here in RDI
 
