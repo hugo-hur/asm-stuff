@@ -15,23 +15,52 @@ section .data
 	
 section .text
 extern printf
-printfcallfloat:
-	;Pass in RDI
 
-	MOV RSI, RDI
+%macro pushxmm 1
+	SUB RSP, 8;Move the stack
+	MOVSD QWORD [RSP], %1
+%endmacro
+%macro popxmm 1
+	MOVSD XMM0, QWORD [RSP]
+	ADD RSP, 8;Move the stack
+%endmacro
+
+pushxmm0:
+	SUB RSP, 8;Move the stack
+	MOVSD QWORD [RSP], XMM0
+	RET
+popxmm0:
+	MOVSD XMM0, QWORD [RSP]
+	ADD RSP, 8;Move the stack
+	RET
+
+pushxmm1:
+	SUB RSP, 8;Move the stack
+	MOVSD QWORD [RSP], XMM1
+	RET
+popxmm1:
+	ADD RSP, 8;Move the stack
+	MOVSD XMM1, QWORD [RSP]
+	RET
+printfcallfloat:
+	;Value is passed here in RDI
+
 	PUSH RDI ;Preserve value of rdi
 	PUSH RAX ;Preserve value of RAX
 	
-	PUSH RDI;The value we want to print
-	PUSH DWORD formatStrf
-
-	;MOV RDI, formatStrf
-	;MOV AL, 0 ;Magic number
+	;CALL pushxmm0;Preserve XMM0
+	pushxmm XMM0
+	;Double is passed in XMM0
+	;Now we move the value from the reg to the XMM0 using stack
+	PUSH RDI
+	popxmm XMM0
+	MOV AL, 1;We are passing one argument so al should be 1
+	MOV RDI, formatStrf ;Format string is passed in RDI
+	
 	CALL printf ;segfault
 	
-	POP RAX;Pop the stack back
-	POP RAX
-
+	;CALL popxmm0;Restore XMM0
+	popxmm XMM0
 	POP RAX
 	POP RDI
 	RET
@@ -127,7 +156,7 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	F2XM1 ; ST(0) = 2^ST(0) - 1
 	;Pop th resutl back to cpu stack
 	FSTP QWORD [RSP]
-	;load back to sse (floating point)
+	;load back to sse for return value (floating point)
 	MOVSD XMM0, QWORD [RSP]
 	ADD RSP, 8
 	RET
