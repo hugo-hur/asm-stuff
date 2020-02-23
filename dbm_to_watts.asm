@@ -67,31 +67,36 @@ printfcallfloat:
 
 printfcall:;Pass in RDI
 	
+	PUSH RSI
 	MOV RSI, RDI
 	PUSH RDI
 	PUSH RAX
+	pushxmm XMM0
+	pushxmm XMM1
 
 	MOV RDI, formatStrdec
 	MOV AL, 0 
 	CALL printf
 
+	popxmm XMM1
+	popxmm XMM0
 	POP RAX
 	POP RDI
+	POP RSI
 	RET
 
 addone: 
-	MOVSD QWORD [RSP], XMM1 ;Copy to stack to preserve;PUSH XMM1
-	;PUSH;Can we do this? no
-	;PUSH XMM1;Increment the stackpointer, cannot push directly
-	SUB RSP, 8;PUSH EAX;Just move the stack pointer
+	;Preserve XMM1
+	pushxmm XMM1
 
+	SUB RSP, 8 ;Move the stack pointer to store the constant temporarily
 	MOV DWORD [RSP], __float32__(1.0);Store the constant to the stack
 	CVTSS2SD XMM1, [RSP]    ; Load 32-bit single and convert it to 64-bit double. Store in XMM1
 	ADDSS XMM0, XMM1;add the one
 
-	ADD RSP, 8
+	ADD RSP, 8 ;Restore the stack
 	;Load the XMM1 back
-	MOVSD XMM1, QWORD [RSP]
+	popxmm XMM1
 	RET
 
 global dbmwatts
@@ -102,51 +107,41 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	MOV DWORD [RSP], __float32__(10.0);Store the exponent divider to the stack
 	CVTSS2SD XMM1, [RSP]    ; Load 32-bit single and convert it to 64-bit double. Store in XMM1
 	DIVSD XMM0, XMM1 ;Divide the input by 10, store result to xmm0
-
-	;CVTSD2SI RDI, XMM0 ;truncate the value
-	;call printfcall ;Does print 2
+	;Print xmm1
+	MOVSD QWORD [RSP], XMM1 ;Copy to stack
+	MOV RDI, QWORD [RSP]
+	CALL printfcallfloat
 
 	;Calculate 10^xmm0
 	;Load 10 to the fpu stack
-	
 	PUSH 10
 	FILD QWORD [RSP]
 	POP RDI
 
 	MOVSD QWORD [RSP], XMM0 ;Copy to stack
-	FLD QWORD [RSP];Load number 2 float to the x87
-
+	FLD QWORD [RSP];Load number float from XMM0 to the x87
 	;Do the math y = xmm0 (2), x=10 X*LOG2(Y)
-	FYL2X ;ST(1) = OUT
-	;Calculate 2^ST(1)
-	
+	FYL2X
 	;We now have the result of x*log2(y) in ST(0), calculate 2^ST(0)
 	;calculate 2 to the power of the whole part of exponent
 	;Get the whole part of the exponent
 	;load the result from the stack to the xmm0 reg
 	FSTP QWORD [RSP];Pop the result from the logarithm to the stack
-	
-	;POP RDI
-	;call printfcallfloat
-
 	MOVSD XMM0, QWORD [RSP];Move the result back to xmm0
+	;CVTSD2SI RDI, XMM0 ;truncate the value (result of the logarithm from the stack) and store to RDI
 	
-	CVTSD2SI RDI, XMM0 ;truncate the value (result of the logarithm from the stack) and store to RDI
+	;CALL twotopwr ;Calculate 2^whole exponent
+	;MOV RDI, RAX
+	;CALL printfcall ;Print the result
 	
-	CALL twotopwr ;Calculate 2^whole exponent
-	MOV RDI, RAX
-	CALL printfcall ;Print the result
-	;ADD RSP, 8
-	;RET
-	;Subtract the XMM0 from XMM1
 	;print XMM0 and XMM1
 	MOVSD QWORD [RSP], XMM0 ;Copy to stack
 	MOV RDI, QWORD [RSP]
-	CALL printfcallfloat;This preserves RDI and RAX
+	CALL printfcallfloat;This preserves all registers
 
 	MOVSD QWORD [RSP], XMM1 ;Copy to stack
 	MOV RDI, QWORD [RSP]
-	CALL printfcallfloat;This preserves RDI and RAX
+	CALL printfcallfloat;This preserves all registers
 
 
 	SUBSD XMM1, XMM0
