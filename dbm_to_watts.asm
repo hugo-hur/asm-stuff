@@ -30,7 +30,7 @@ printfcallfloat:
 	PUSH RDI ;Preserve value of rdi
 	PUSH RAX ;Preserve value of RAX
 	pushxmm XMM0 ;Preserve XMM0
-	pushxmm XMM1 ;Preserve XMM1 also
+	pushxmm XMM1 ;Added this to make sure XMM1 is surely preserved after call
 	;Double is passed to printf in XMM0
 	;Now we move the value from the reg to the XMM0 using stack
 	PUSH RDI
@@ -38,10 +38,10 @@ printfcallfloat:
 	MOV AL, 1;We are passing one argument so al should be 1
 	MOV RDI, formatStrf ;Format string is passed in RDI
 	
-	CALL printf
+	CALL printf ;Does not necessarily preserve SSE registers
 	
 	;Restore XMM regs
-	popxmm XMM1
+	popxmm XMM1 ;Pop it
 	popxmm XMM0
 	POP RAX
 	POP RDI
@@ -54,7 +54,7 @@ printfcall:;Pass in RDI
 	PUSH RDI
 	PUSH RAX
 	pushxmm XMM0
-	pushxmm XMM1
+	pushxmm XMM1 ;Added this to make sure XMM1 is surely 
 
 	MOV RDI, formatStrdec
 	MOV AL, 0 
@@ -84,7 +84,7 @@ addone:
 global dbmwatts
 dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	;Align the stack
-	SUB RSP, 8;8 bytes return address and 8 bytes input value
+	SUB RSP, 8 ;8 bytes return address
 	;xmm0;Input here
 	;sub esp, 8 ;Make space on the stack for temporarily store the constant float
 	SUB RSP, 8
