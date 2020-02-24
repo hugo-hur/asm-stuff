@@ -112,11 +112,11 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 	;load the result from the stack to the xmm0 reg
 	FSTP QWORD [RSP];Pop the result from the logarithm to the stack
 	MOVSD XMM0, QWORD [RSP];Move the result back to xmm0
-	;CVTSD2SI RDI, XMM0 ;truncate the value (result of the logarithm from the stack) and store to RDI
+	CVTSD2SI RDI, XMM0 ;truncate the value (result of the logarithm from the stack) and store to RDI
 	
-	;CALL twotopwr ;Calculate 2^whole exponent
-	;MOV RDI, RAX
-	;CALL printfcall ;Print the result
+	CALL twotopwr ;Calculate 2^whole exponent
+	MOV RDI, RAX
+	CALL printfcall ;Print the result
 	
 	;print XMM0 and XMM1
 	MOVSD QWORD [RSP], XMM0 ;Copy to stack
@@ -129,19 +129,34 @@ dbmwatts: ;(returns floating point watt value, input is watt value in dBm)
 
 
 	SUBSD XMM1, XMM0
+	MOVSD QWORD [RSP], XMM1 ;Copy to stack
+	MOV RDI, QWORD [RSP]
+	CALL printfcallfloat;This preserves all registers
+
 	;Calculate 2^XMM1
 	MOVSD QWORD [RSP], XMM1 ;Copy the remainder back to the stack
 	FLD QWORD [RSP];Load the remainder to the fpu stack ST(0)
 	F2XM1 ; ST(0) = 2^ST(0) - 1
 	;Pop th resutl back to cpu stack
 	FSTP QWORD [RSP]
-	;load back to sse for return value (floating point)
-	MOVSD XMM0, QWORD [RSP]
+	MOVSD XMM0, QWORD [RSP];load back to sse for return value (floating point)
+	
+	MOVSD QWORD [RSP], XMM0 ;Copy to stack
+	MOV RDI, QWORD [RSP]
+	CALL printfcallfloat;This preserves all registers
+
+	;Add one to the result
+	CALL addone ;ADDSS XMM0
+
+	MOVSD QWORD [RSP], XMM0 ;Copy to stack
+	MOV RDI, QWORD [RSP]
+	CALL printfcallfloat;This preserves all registers
+
 	ADD RSP, 8;restore stack
 	ADD RSP, 8
 	RET
-	;Add one to the result
-	CALL addone ;ADDSS XMM0, 1;Must be reg?
+
+
 	;Multiply with the whole number we got from the exponentiation subroutine
 	;Load the rax to sse (whole number in rax)
 	SUB RSP, 4
